@@ -1,0 +1,53 @@
+
+			version=42
+			adjustmentfile=/var/www/wildfire/input/Factor_1.ADJ
+			fuelmoisturefile=/var/www/wildfire/input/Low.FMS
+			fuelmodelfile=
+			weatherfile0=/var/www/wildfire/work/fires/1702/weather.WTH
+			windFile0=/var/www/wildfire/work/fires/1702/wind.WND
+			landscapefile=/var/www/wildfire/work/fires/1702/landscape.LCP
+			burnperiodefile=
+			timestep=0.5
+			visiblestep=1h
+			secondaryvisiblestep=2h
+			perimeterresolution=60m
+			distanceresolution=30
+			enablecrownfire=false
+			linkcrowndensityandcover=false
+			embersfromtorchingtrees=true
+			enablespotfiregrowth=false
+			nwnsbackingros=false
+			distanceChecking=fireLevel
+			simulatePostFrontalCombustion=false
+			fuelInputOption=absent
+			calculationPrecision=normal
+			useConditioningPeriod = false
+			conditMonth = 05
+			conditDay = 16
+			startMonth = 05
+			startDay = 16
+			startHour = 1150
+			startMin = 00
+			endMonth = 05
+			endDay = 16
+			endHour = 1750
+			endMin = 00
+			ignitionFile = /var/www/wildfire/work/fires/1702/ignition.VCT
+			ignitionFileType = line
+			# point or line
+			vectMake = false
+			# Therefore we don't need the vectorFilename property
+			shapeMake = true
+			shapeFile = /var/www/wildfire/work/fires/1702/results.shp
+			rastMake = false
+			rasterFilename = /var/www/wildfire/work/fires/1702/results_raster
+			#Now explicitly set ALL raster options..do not rely on defaults
+			rast_arrivaltime = true
+			rast_fireIntensity = true
+			rast_spreadRate = true
+			rast_flameLength = false
+			rast_heatPerArea = false
+			rast_crownFire = false
+			rast_fireDirection = false
+			rast_reactionIntensity = false
+			

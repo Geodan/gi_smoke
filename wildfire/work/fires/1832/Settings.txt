@@ -1,0 +1,44 @@
+Inputs:
+   Landscape: LANDSCAPE.LCP
+   Weather: WEATHER.WTH
+   Winds: WIND.WND
+   Adjustments: FACTOR_1.ADJ
+   Fuel Moistures: LOW.FMS
+   Conversions: NONE
+   Custom Fuel Models: NONE
+   Coarse Woody Fuels: NONE
+   Burning Period: NONE
+   Project File: 
+   Bookmark File: 
+Outputs:
+   Shapefile: /var/www/wildfire/work/fires/1832/results.shp
+   Display Units: METRIC
+   Output File Units: METRIC
+Model:
+   Parameters: TimeStep 15.0
+   Parameters: Visibles 30.0, 60.0
+   Parameters: Perim Res 20.0
+   Parameters: Dist Res 20.0
+   Options: Crown Fire: DISABLED
+   Options: Spotting: ENABLED
+   Options: Spot Growth: DISABLED
+   Options: Ignition Delay: 0 mins
+   Options: Fire Level Dist. Check
+   Acceleration: ON
+   Acceleration: DEFAULTS
+   Post Frontal: OFF
+   Dead Fuel Moisture: PRE-CALCULATED
+Simulate:
+   Duration: Conditioning (Mo/Day): 5/21
+   Duration: Starting (Mo/Day Hour:Min): 5/21 15:0
+   Duration: Ending (Mo/Day Hour:Min): 5/21 21:0
+   Options: Duration Reset: FALSE
+   Options: Restore Ignitions: FALSE
+   Options: Rotation Sensitive Ignitions: FALSE
+   Options: Show Fires as Grown: TRUE
+   Options: Ignition Spread Rates: FALSE
+   Options: Preserve Inactive Enclaves: TRUE
+   Options: Simulation Threads: 01
+Attack:
+View:
+   Viewport: MAXIMIZED

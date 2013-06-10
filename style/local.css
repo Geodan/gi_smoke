@@ -1,0 +1,33 @@
+body {
+	font-family:helvetica,tahoma,verdana,sans-serif;
+	padding:20px;
+    padding-top:32px;
+    font-size:13px;
+	background-color:#fff !important;
+}
+p {
+	margin-bottom:15px;
+}
+h1 {
+	font-size:large;
+	margin-bottom:20px;
+}
+h2 {
+	font-size:14px;
+    color:#333;
+    font-weight:bold;
+    margin:10px 0;
+}
+
+    
+.gxp-ignite-icon {
+    background-image: url('../images/icons/silk/icons/lightning.png');
+}
+
+.gxp-flood-icon {
+    background-image: url('../images/icons/silk/icons/weather_rain.png');
+}
+
+.gxp-areaselect-icon {
+	background-image: url('../images/icons/silk/icons/layers.png');
+}

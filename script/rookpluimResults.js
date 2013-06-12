@@ -5,9 +5,10 @@
 		TODO: perhaps we don't have to create an complete new window every time. Updating the source data might do..
 		***/
 
-	function rookpluimresults(processid){
+	function rookpluimresults(processid, title){
 		this.chart;
 		this.processid = processid;
+		this.title = title;
 		this.firstDraw = function(data) {
 			nv.addGraph(function() {
 				//BUG in cumulativelinechart: http://stackoverflow.com/questions/12548640/nvd3-line-chart-with-realtime-data
@@ -112,8 +113,8 @@
 		});
 		/***** START OF weergaveWindow ***/
 		this.weergaveWindow = new Ext.Window({
-			title: 'Weergave',
-			closable: true,
+			title: 'Weergave ' + this.title,
+			closable: false,
 			closeAction: 'hide',
 			items: [{
 				xtype: 'form',
@@ -248,6 +249,7 @@
 		this.profiles = [];
 		
 		//Add KNMI layers
+		//TODO: this layer is always the same? Then move to rookpluimpanel.
 		var knmi1 = new OpenLayers.Layer.WMS("KNMI stations",
                  "http://smoke-plume.argoss.nl/geoserver/wms",
                  {
@@ -259,9 +261,11 @@
 		app.mapPanel.map.addLayer(knmi1);
 		
 		//TT: starting a new way of getting data via coveragestore
-		//var cstore = 
-		//	config: {
-		//		url: "http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid=" + processid + "]";
+		var cstore = { 
+			config: {
+				url: "http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid=" + processid + "]"
+			}
+		}
 		
 		
 		//Add source for processid
@@ -359,7 +363,29 @@
         	}
         });
         
-       
+        //deactivate all functionality from this modelresults
+       this.deactivate = function(){
+       	   this.stop();
+       	   //set all layers invisible
+       	   for (var i=0;i<self.layers.vector.length;i++){
+       	   	   		var name = self.layers.vector[i];
+					var arr = app.mapPanel.map.getLayersByName(name);
+					arr[0].setVisibility(false);
+					var name = self.layers.raster[i];
+					var arr = app.mapPanel.map.getLayersByName(name);
+					arr[0].setVisibility(false);
+					var name = self.layers.wind[i];
+					var arr = app.mapPanel.map.getLayersByName(name);
+					arr[0].setVisibility(false);
+					var name = self.layers.profiel[i];
+					var arr = app.mapPanel.map.getLayersByName(name);
+					arr[0].setVisibility(false);
+					var name = self.layers.cone[i];
+					var arr = app.mapPanel.map.getLayersByName(name);
+					arr[0].setVisibility(false);
+		   }
+       	   	  
+       }
 		
 		/***
 			Handle smoke-plume results
@@ -533,8 +559,10 @@ var cbxSelModel = new Ext.grid.CheckboxSelectionModel({
             		//console.log('Success! ' + selectedRows[0].data.processid[0] );
             		var processid = selectedRows[0].data.processid[0];
 					for (var i=0;i<modelresults.length;i++)
-					{
+					{	//Hide all
+						modelresults[i].weergaveWindow.hide();
 						if (modelresults[i].processid == processid){
+							//Only show selected
 							modelresults[i].weergaveWindow.show();
 							
 						}
@@ -550,7 +578,7 @@ var simulatiesGrid = new Ext.grid.GridPanel({
 		selModel: cbxSelModel,
 		height: 400,
 		columns: [
-			cbxSelModel,
+			//cbxSelModel,
 			{id: 'title', header: 'Name', width: 80, sortable: true, dataIndex: 'title'},
 			/*{
 			xtype: 'actioncolumn',
@@ -631,6 +659,7 @@ var processGrid = new Ext.grid.GridPanel({
 				var rec = new simulatiesStore.recordType(newdata);
 				simulatiesStore.insert(0,rec);
 				var processid = rec.get('processid');
+				var title = rec.get('title');
 				var archivestatus = rec.get('archive');
 				for (var i=0;i<modelresults.length;i++)
 				{
@@ -638,7 +667,7 @@ var processGrid = new Ext.grid.GridPanel({
 					if (modelresults[i].processid == processid) //destroy if exists
 						modelresults.splice(i,1);
 				}
-				modelresults.push(new rookpluimresults(processid));
+				modelresults.push(new rookpluimresults(processid, title));
 				
 			}
 		},{

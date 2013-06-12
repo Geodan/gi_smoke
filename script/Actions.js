@@ -239,17 +239,7 @@ var wpsCallback = function(response) {
 	
 }
 
-var StringtoXML = function(text){
-	if (window.ActiveXObject){
-	  var doc=new ActiveXObject('Microsoft.XMLDOM');
-	  doc.async='false';
-	  doc.loadXML(text);
-	} else {
-	  var parser=new DOMParser();
-	  var doc=parser.parseFromString(text,'text/xml');
-	}
-	return doc;
-}
+
 //WILL BE REPLACED BY wpsCallback ^^
 var wpsRunning = function(response) {
 	var xml;

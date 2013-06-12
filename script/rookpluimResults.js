@@ -85,6 +85,8 @@
 		});
 		
 		this.processid = processid.toString(); //TODO: make non-global
+		
+		/*Obs
 		this.loader =  new GeoExt.tree.WMSCapabilitiesLoader({
             url: OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/geoserver/'+this.processid+'/wms?&version=1.1.1&request=GetCapabilities'),
             layerOptions: {buffer: 0, singleTile: true, ratio: 1},
@@ -100,7 +102,7 @@
 			text: 'Model output',
 			loader: this.loader
 			});
-	
+			*/
 		this.parampanel = new Ext.grid.GridPanel({
 			store: this.paramStore,
 			colModel: this.paramsColModel,
@@ -255,6 +257,13 @@
                  ,{metadata:{legendURL: "foo"}}
                  );
 		app.mapPanel.map.addLayer(knmi1);
+		
+		//TT: starting a new way of getting data via coveragestore
+		//var cstore = 
+		//	config: {
+		//		url: "http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid=" + processid + "]";
+		
+		
 		//Add source for processid
 		var source = app.addLayerSource({
             config: {
@@ -349,6 +358,8 @@
         		slider.setMaxValue(self.layers.vector.length -1); //-1 because 0 is first layer
         	}
         });
+        
+       
 		
 		/***
 			Handle smoke-plume results
@@ -479,12 +490,8 @@
 		this.play  = function(){
 			this.playinterval = window.setInterval(this._playstep,2000);
 		}
-		
-		
-		
-    
 	
-		
+		//Get the parameters of the process for display 
 		Ext.Ajax.request({
 			url:OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getprocessinfo&datainputs=[processid='+processid+']'),
 			headers: { Authorization : auth },
@@ -493,8 +500,12 @@
 		});
 		
 		
-	} //End of rookpluimresults
-	
+	} 
+
+/****
+	End of rookpluimresults
+****/
+
 /****
 	Simulaties store
 *****/
@@ -600,9 +611,9 @@ var processColModel = new Ext.grid.ColumnModel({
 		sortable: true
 	},
 	columns: [
-		{id: 'title', header: 'Name', width: 80, sortable: true, dataIndex: 'title'},
-		{id: 'processid', header: 'Processid', width: 40, sortable: true, dataIndex: 'processid'},
-		//{id: 'archive', header: 'Archive', width: 5, sortable: true, dataIndex: 'archive'},
+		{id: 'title', header: 'Naam', width: 80, sortable: true, dataIndex: 'title'},
+		{id: 'processid', header: 'Proces id', width: 80, sortable: true, dataIndex: 'processid'},
+		{id: 'archive', header: 'Status', width: 40, sortable: true, dataIndex: 'archive'},
 	]
 }); 
 
@@ -620,14 +631,15 @@ var processGrid = new Ext.grid.GridPanel({
 				var rec = new simulatiesStore.recordType(newdata);
 				simulatiesStore.insert(0,rec);
 				var processid = rec.get('processid');
+				var archivestatus = rec.get('archive');
 				for (var i=0;i<modelresults.length;i++)
 				{
 					modelresults[i].parampanel.hide();//hide info panel
 					if (modelresults[i].processid == processid) //destroy if exists
 						modelresults.splice(i,1);
 				}
-				//create new modelresults
 				modelresults.push(new rookpluimresults(processid));
+				
 			}
 		},{
 			text: 'Annuleren',
@@ -686,8 +698,12 @@ var userinfoReady = function(response) {
 			for (i=0;i<list.length;i++){
 				n = list[i];
 				title = titlelist[i];
-				archive = archivelist[i];
-				if (archive == 0 || archive == 2)
+				if (archivelist[i] == 0 || archivelist[i] == 2)
+					archive = 0;
+				else
+					archive = 1;
+				//if (archive == 0 || archive == 2) //TT: ook archive doen
+				if (1==1)
 				{
 					ProcessIdData.push([]);
 					t = ProcessIdData.length -1;

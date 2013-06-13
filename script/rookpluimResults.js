@@ -114,7 +114,7 @@
 		/***** START OF weergaveWindow ***/
 		this.weergaveWindow = new Ext.Window({
 			title: 'Weergave ' + this.title,
-			closable: false,
+			closable: true,
 			closeAction: 'hide',
 			items: [{
 				xtype: 'form',
@@ -180,65 +180,11 @@
 				}
 				]
 				
-			},{
-				xtype: 'form',
-				items: [
-				{
-					xtype: 'fieldset',
-					title: 'Toon simulatie data',
-					defaultType: 'checkbox',
-					defaults: {
-					
-					handler: function(object){
-							//console.log(object);
-							for (i=0;i<modelresults.length;i++){
-								self.visibleLayers[object.itemId] = object.checked;
-								self.redraw();
-							}
-						}
-					},
-					items: [
-					{fieldLabel: 'Vector',itemId: 'vector', checked: true},
-					{fieldLabel: 'Raster',itemId: 'raster'},
-					{fieldLabel: 'Wind',itemId: 'wind'},
-					{fieldLabel: 'Rekengrid',itemId: 'rekengrid'},
-					{fieldLabel: 'Dwarsprofiel kader',itemId: 'cone'},
-					{fieldLabel: 'Dwarsprofiel',itemId: 'profiel'}
-					]
-				},{
-					xtype: 'fieldset',
-					title: 'Toon actuele wind data',
-					defaults: {
-						//width: 150,
-					},
-					items: [
-					{xtype: 'checkbox',	fieldLabel: 'Model',itemId: 'model'},
-					{xtype: 'checkbox',	fieldLabel: 'KNMI',itemId: 'knmi'}	
-					]
-				},{
-					xtype: 'fieldset',
-					title: 'Toon',
-					defaultType: 'checkbox',
-					defaults: {
-						handler: function(object){
-							self.visibleLayers[object.itemId] = object.checked;
-							//GRID
-							var name = self.layers.grid;
-							var arr = app.mapPanel.map.getLayersByName(name);
-							arr[0].setVisibility(self.visibleLayers['landgrid']);
-							self.redraw();
-						}
-					},
-					
-					items: [
-					{fieldLabel: 'Land grid',itemId: 'landgrid'}
-					]
-				}]
 			}]
 		});
 		/***** END OF weergaveWindow ***/
 
-		this.visibleLayers = [];
+		//this.visibleLayers = [];
 		
 		this.layers = {};
 		this.layers.vector = [];
@@ -435,7 +381,7 @@
 				//Only do that for vector layer
 				var name = self.layers.vector[i];
 				var arr = app.mapPanel.map.getLayersByName(name);
-				arr[0].setVisibility(self.visibleLayers['vector']);
+				arr[0].setVisibility(visibleLayers['vector']);
 				//arr[0].setOpacity(1-((step-i)/range));
 				if (i == step)
 					arr[0].setOpacity(1);
@@ -446,19 +392,19 @@
 			//Rest of layers only shown at T max step
 			var name = self.layers.raster[step];
 			var arr = app.mapPanel.map.getLayersByName(name);
-			arr[0].setVisibility(self.visibleLayers['raster']);
+			arr[0].setVisibility(visibleLayers['raster']);
 			
 			var name = self.layers.wind[step];
 			var arr = app.mapPanel.map.getLayersByName(name);
-			arr[0].setVisibility(self.visibleLayers['wind']);
+			arr[0].setVisibility(visibleLayers['wind']);
 			
 			var name = self.layers.profiel[step];
 			var arr = app.mapPanel.map.getLayersByName(name);
-			arr[0].setVisibility(self.visibleLayers['profiel']);
+			arr[0].setVisibility(visibleLayers['profiel']);
 			
 			var name = self.layers.cone[step];
 			var arr = app.mapPanel.map.getLayersByName(name);
-			arr[0].setVisibility(self.visibleLayers['cone']);
+			arr[0].setVisibility(visibleLayers['cone']);
 						
 			//Show time
 			var time = name.split("_")[1].split("-");
@@ -641,7 +587,7 @@ var processColModel = new Ext.grid.ColumnModel({
 	columns: [
 		{id: 'title', header: 'Naam', width: 80, sortable: true, dataIndex: 'title'},
 		{id: 'processid', header: 'Proces id', width: 80, sortable: true, dataIndex: 'processid'},
-		{id: 'archive', header: 'Status', width: 40, sortable: true, dataIndex: 'archive'},
+		{id: 'archive', header: 'Archief?', width: 40, sortable: true, dataIndex: 'archive'},
 	]
 }); 
 

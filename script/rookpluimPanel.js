@@ -25,7 +25,7 @@ errorcodes.push("Tijden voor variabele temperatuur en emissie liggen niet tussen
 errorcodes.push("Als variabele emissie en temperatuur wordt gevraagd en eerste tijdstip in niet gelijk aan 0.0 dan foutmelding");
 errorcodes.push("Gridsize niet correct >=50 en =<250 met stappen van 50 meter");
 
-
+var visibleLayers = [];
 
 function processValidation(response){
 	
@@ -1095,7 +1095,10 @@ var modelWindow = new Ext.Window({
 			text: 'Start',
 			id: 'smokestart_btn',
 			disabled: true,
-			handler: function()	{ fireSmoke(false); }
+			handler: function()	{ 
+				modelWindow.hide();
+				fireSmoke(false); 
+			}
 		},{
 			text: 'Reset', 
 			handler: function()	{ alert('todo'); }
@@ -1103,6 +1106,77 @@ var modelWindow = new Ext.Window({
 			text: 'Annuleren', 
 			handler: function()	{ modelWindow.hide(); }
 		},]
+});
+
+var visibilityWindow = new Ext.Window({
+		id: 'visibilityWindow',
+		title: 'Weergave',
+		closable: true,
+		closeAction: 'hide',
+		resizable: true,
+		draggable: true,
+		width: '200',
+		height: '600',
+		//plain: true,
+		//layout: 'fit',
+		modal: false,
+		items: [{
+			xtype: 'form',
+			items: [
+			{
+				xtype: 'fieldset',
+				title: 'Toon simulatie data',
+				defaultType: 'checkbox',
+				defaults: {
+				
+				handler: function(object){
+						//console.log(object);
+						for (i=0;i<modelresults.length;i++){
+							visibleLayers[object.itemId] = object.checked;
+							modelresults[i].redraw();
+						}
+					}
+				},
+				items: [
+				{fieldLabel: 'Vector',itemId: 'vector', checked: true},
+				{fieldLabel: 'Raster',itemId: 'raster'},
+				{fieldLabel: 'Wind',itemId: 'wind'},
+				{fieldLabel: 'Rekengrid',itemId: 'rekengrid'},
+				{fieldLabel: 'Dwarsprofiel kader',itemId: 'cone'},
+				{fieldLabel: 'Dwarsprofiel',itemId: 'profiel'}
+				]
+			},{
+				xtype: 'fieldset',
+				title: 'Toon actuele wind data',
+				defaults: {
+					//width: 150,
+				},
+				items: [
+				{xtype: 'checkbox',	fieldLabel: 'Model',itemId: 'model'},
+				{xtype: 'checkbox',	fieldLabel: 'KNMI',itemId: 'knmi'}	
+				]
+			},{
+				xtype: 'fieldset',
+				title: 'Toon',
+				defaultType: 'checkbox',
+				defaults: {
+					handler: function(object){
+						visibleLayers[object.itemId] = object.checked;
+						//GRID
+						for (i=0;i<modelresults.length;i++){
+							var name = self.layers.grid;
+							var arr = app.mapPanel.map.getLayersByName(name);
+							arr[0].setVisibility(visibleLayers['landgrid']);
+							modelresults[i].redraw();
+						}
+					}
+				},
+				
+				items: [
+				{fieldLabel: 'Land grid',itemId: 'landgrid'}
+				]
+			}]
+		}]
 });
 
 /****** START OF CHART ****/
@@ -1211,7 +1285,7 @@ gmi.ModelPanel = Ext.extend(Ext.Panel, {
 							handler: function() {modelWindow.show();}
 						},{
 							text: 'Weergave',
-							handler: function() {//weergaveWindow.show();
+							handler: function() {visibilityWindow.show();
 							}
 						},{
 							text: 'Beheer',

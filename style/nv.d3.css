@@ -86,9 +86,9 @@ svg {
   -ms-user-select: none;
   user-select: none;
   /* Trying to get SVG to act like a greedy block in all browsers */
-  /*display: block;
+  display: block;
   width:100%;
-  height:100%;*/
+  height:100%;
 }
 
 

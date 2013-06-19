@@ -8,11 +8,12 @@ Example from: http://api.geoext.org/1.1/examples/wms-tree.js
 
 TODO: perhaps we don't have to create an complete new window every time. Updating the source data might do..
 ***/
-
+var tmp2;
 function rookpluimresults(processid, title){
 	this.chart;
 	this.processid = processid;
 	this.title = title;
+	this.paramjson;
 	this.firstDraw = function(data) {
 		nv.addGraph(function() {
 			//BUG in cumulativelinechart: http://stackoverflow.com/questions/12548640/nvd3-line-chart-with-realtime-data
@@ -66,17 +67,7 @@ function rookpluimresults(processid, title){
 	  })
 	});
 	
-	this.processParams = function(response) {
-		var node;
-		var dq = Ext.DomQuery;
-		//XML with namespaces doesn't work in EXT, so we first remove the namespaces.
-		//The replace function is now only replacing 'wps' and 'ows' namespaces
-		//var xml = response.responseXML;
-		var string = response.responseText.replace(/wps:/gi,"");
-		var string = string.replace(/ows:/gi,"");
-		var xml = StringtoXML(string);
-		this.paramStore.loadData(xml);
-	}
+	
 	
 	this.paramsColModel = new Ext.grid.ColumnModel({
 		defaults: {
@@ -90,7 +81,15 @@ function rookpluimresults(processid, title){
 	});
 	
 	this.processid = processid.toString(); //TODO: make non-global
-	
+	this.parampanel = new Ext.Panel({
+			title: 'Parameters',
+			html: '<p>No data</p>',
+			listeners: {
+				'afterrender': function( obj, eOpts ){
+					self.tpl.overwrite(self.parampanel.body,self.paramjson);
+				}
+			}
+	});
 	/*Obs
 	this.loader =  new GeoExt.tree.WMSCapabilitiesLoader({
 		url: OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/geoserver/'+this.processid+'/wms?&version=1.1.1&request=GetCapabilities'),
@@ -108,13 +107,54 @@ function rookpluimresults(processid, title){
 		loader: this.loader
 		});
 		*/
-	this.parampanel = new Ext.grid.GridPanel({
-		store: this.paramStore,
-		colModel: this.paramsColModel,
-		title: "Parameters",
-		autoHeight: true
-		//renderTo: 'rookpluiminfopanel'
-	});
+	//this.parampanel = new Ext.grid.GridPanel({
+	//	store: this.paramStore,
+	//	colModel: this.paramsColModel,
+	//	title: "Parameters",
+	//	autoHeight: true
+	//	//renderTo: 'rookpluiminfopanel'
+	//});
+	this.tpl = new Ext.XTemplate(
+		'<table>',
+		'<tr><td>Simulatie:</td>		<td> {titlecase}	</td></tr>',
+		'<tr><td>Id:</td>				<td> {processid}	</td></tr>',
+		'<tr><td>Coordinaten:</td>		<td> {xcrd}, {ycrd}	</td></tr>',
+		'<tr><td>Begintijd incident:</td><td>{begtime}		</td></tr>',
+		'<tr><td>Eindtijd:</td>			<td> {endtime}		</td></tr>',
+		'<tr><td>Uitstoot:</td>			<td> <table>',
+			'<tr><th> Tijd(u) </th><th> Uitstoot(KG/s)</th><th> Temperatuur(&deg;C)</th></tr>',
+			'<tr><td> {timesteps} </td><td> {emission}</td><td> {temperature}</td></tr>', 
+		'</table></td></tr>', 
+		'<tr><td>Oppervlak:</td> 		<td> {surface}	</td></tr>',
+		'<tr><td>Hoogte (m):</td> 		<td> {stackheight}	</td></tr>',
+		'<tr><td>Vrijkomende stoffen:</td><td> {species}  	</td></tr>',
+		'<tr><td>Gridcel:</td>			<td> {gridsize}  	</td></tr>',
+		'</table>',
+		'</tpl>'
+	);
+	this.processParams = function(response) {
+		var node;
+		var dq = Ext.DomQuery;
+		//XML with namespaces doesn't work in EXT, so we first remove the namespaces.
+		//The replace function is now only replacing 'wps' and 'ows' namespaces
+		//var xml = response.responseXML;
+		var string = response.responseText.replace(/wps:/gi,"");
+		var string = string.replace(/ows:/gi,"");
+		var xml = StringtoXML(string);
+		var x = xml.getElementsByTagName("Output");
+		var paramjson = {};
+		for (i = 0; i < x.length; i++){
+			var key = x[i].getElementsByTagName("Identifier")[0].textContent;
+			var title = x[i].getElementsByTagName("Title")[0].textContent;
+			var value = x[i].getElementsByTagName("LiteralData")[0].textContent;
+			paramjson[key] = value;
+		}
+		self.paramjson = paramjson;
+		//this.paramStore.loadData(xml);
+		
+	} 
+	
+		
 	
 	/**
 		Callback loop to see if modelresults are available or still archived
@@ -206,6 +246,7 @@ function rookpluimresults(processid, title){
 	}
 	
 	/***** START OF weergaveWindow ***/
+	
 	this.weergaveWindow = new Ext.Window({
 		title: 'Weergave ' + this.title,
 		closable: true,
@@ -290,6 +331,7 @@ function rookpluimresults(processid, title){
 	this.layers.wind = [];
 	this.layers.profiel = [];
 	this.layers.cone = [];
+	this.layers.rekengrid;
 	this.profiles = [];
 	
 	
@@ -326,9 +368,17 @@ function rookpluimresults(processid, title){
 				//title: "Pluim om:" + name.split("_")[1]
 				title: name
 			});
-			app.mapPanel.layers.add(record);
-			if (name.match("grid"))
-				self.layers.grid = name;
+			
+			if (name.match("grid")){ 
+				//Zoom to layer
+				tmp2 = record;
+				var l = record.getLayer();
+				var p = l.getMaxExtent().getCenterLonLat();
+				app.mapPanel.map.setCenter(p,13);
+				//Grid is just one layer and can be visible
+				l.setVisibility(true);
+				self.layers.rekengrid = name;
+			}
 			if (name.match("_cv"))
 				self.layers.vector.push(name);
 			if (name.match("_cr"))
@@ -339,6 +389,7 @@ function rookpluimresults(processid, title){
 				self.layers.cone.push(name);
 			if (name.match("_csshp")){
 				self.layers.profiel.push(name);
+			
 				//Pushing all profile data into array for quick use 
 				var url = OpenLayers.ProxyHost + escape("http://smoke-plume.argoss.nl/geoserver/"+processid+"/ows?service=WFS&version=1.0.0&request=GetFeature&typeName="+self.processid+":"+name+"&maxFeatures=10000&outputFormat=json");
 				//WARN: in future version of d3 this will be:d3.json(url, function(error, data){
@@ -380,14 +431,11 @@ function rookpluimresults(processid, title){
 					}
 				});
 			}
-		}
+			app.mapPanel.layers.add(record);
+		} 
 		
 		
-		//Zoom to layer
-		tmp = record.layer;
-		var l = record.data.layer;
-		var e = l.getMaxExtent();
-		app.mapPanel.map.zoomToExtent(e);
+		 
 		//Set play options
 		var slider = self.weergaveWindow.getComponent('afspeelform').getComponent('stepslider'); 
 		slider.setMaxValue(self.layers.vector.length -1); //-1 because 0 is first layer
@@ -399,6 +447,9 @@ function rookpluimresults(processid, title){
    this.deactivate = function(){
 	   this.stop();
 	   //set all layers invisible
+	   var name = self.layers.rekengrid;
+	   var arr = app.mapPanel.map.getLayersByName(name);
+	   arr[0].setVisibility(false);
 	   for (var i=0;i<self.layers.vector.length;i++){
 				var name = self.layers.vector[i];
 				var arr = app.mapPanel.map.getLayersByName(name);
@@ -462,6 +513,10 @@ function rookpluimresults(processid, title){
 		//if (step - range > 0)
 		//	min = step - range;
 		
+		var name = self.layers.rekengrid;
+		var arr = app.mapPanel.map.getLayersByName(name);
+		arr[0].setVisibility(visibleLayers['rekengrid']);
+		
 		//Set layers inside min/max visible
 		for (var i=min;i<=step;i++){
 			//Only do that for vector layer
@@ -491,7 +546,7 @@ function rookpluimresults(processid, title){
 		var name = self.layers.cone[step];
 		var arr = app.mapPanel.map.getLayersByName(name);
 		arr[0].setVisibility(visibleLayers['cone']);
-					
+		
 		//Show time
 		var time = name.split("_")[1].split("-");
 		var hr =  time[0];
@@ -629,12 +684,29 @@ var rowSelModel = new Ext.grid.RowSelectionModel({
             scope: this
         }
     });
+function showMenu(grid, index, event) {
+      event.stopEvent();
+      var record = grid.getStore().getAt(index);
+      var menu = new Ext.menu.Menu({
+            items: [{
+                text: 'Verwijder',
+                handler: function() {
+                	removeRun(grid, index, record);
+                }
+            }]
+        }).showAt(event.xy);
+}
 
 var simulatiesGrid = new Ext.grid.GridPanel({
 		store: simulatiesStore,
 		//selModel: cbxSelModel,
 		selModel: rowSelModel,
 		height: 400,
+		listeners: {
+			'rowcontextmenu' : function(grid, index, event) {
+				 showMenu(grid, index, event);
+			}
+		},
 		columns: [
 			//cbxSelModel,
 			{id: 'title', header: 'Name', width: 80, sortable: true, dataIndex: 'title'},
@@ -699,9 +771,35 @@ var processColModel = new Ext.grid.ColumnModel({
 	columns: [
 		{id: 'title', header: 'Naam', width: 80, sortable: true, dataIndex: 'title'},
 		{id: 'processid', header: 'Proces id', width: 80, sortable: true, dataIndex: 'processid'},
-		{id: 'archive', header: 'Archief?', width: 40, sortable: true, dataIndex: 'archive'},
+		{id: 'archive', header: 'Archief?', width: 80, sortable: true, dataIndex: 'archive'},
 	]
 }); 
+
+function addRun(grid, index, rec){
+	var rec = grid.getSelectionModel().getSelected();
+	var processid = rec.get('processid');
+	var title = rec.get('title');
+	var archivestatus = rec.get('archive');
+	for (var i=0;i<modelresults.length;i++)
+	{
+		if (modelresults[i].processid == processid){ //first destroy if already exists
+			modelresults.splice(i,1,new rookpluimresults(processid, title));
+			return;
+		}
+	}
+	modelresults.push(new rookpluimresults(processid, title));
+}
+
+function removeRun(grid, index,rec){
+	var processid = rec.get('processid');
+	grid.store.remove(rec);
+	console.log('Removed: ' + rec.get('processid'));
+	for (var i=0;i<modelresults.length;i++)
+	{
+		if (modelresults[i].processid == processid) //first destroy if already exists
+			modelresults[i].weergaveWindow.hide();
+	}
+}
 
 var processGrid = new Ext.grid.GridPanel({
 		store: processStore,
@@ -709,30 +807,25 @@ var processGrid = new Ext.grid.GridPanel({
 		colModel: processColModel,
 		height: 400,
 		width: 250,
-		bbar: [{
-			text: 'OK',
-			handler: function(){
-				var rec = processGrid.getSelectionModel().getSelected();
-				var processid = rec.get('processid');
-				var title = rec.get('title');
-				var archivestatus = rec.get('archive');
-				for (var i=0;i<modelresults.length;i++)
-				{
-					modelresults[i].parampanel.hide();//hide info panel
-					if (modelresults[i].processid == processid) //first destroy if already exists
-						modelresults.splice(i,1);
-				}
-				modelresults.push(new rookpluimresults(processid, title));
+		listeners: {
+			'rowdblclick': function(grid, index, rec){
+				addRun(grid);
 			}
-		},{
-			text: 'Annuleren',
-			handler: function(){
-				beheerWindow.hide();
-			}
-		}]
+		}
+		//bbar: [{
+		//	text: 'OK',
+		//	handler: addRun
+		//},{
+		//	text: 'Annuleren',
+		//	handler: function(){
+		//		beheerWindow.hide();
+		//	}
+		//}]
 });
 
-
+/**
+When userinfo is available, create a list of runs from that user and prepare grid
+**/
 var ProcessIdData = [[]];
 var userinfoReady = function(response) {
 		var xml;

@@ -28,6 +28,7 @@ var errorcodes = [
 
 var visibleLayers = [];
 visibleLayers['vector'] = true;
+visibleLayers['grid'] = true;
 var activeRuns = [];
 
 //Generic pywps parser 
@@ -86,7 +87,7 @@ function smokeRun(response) {
 		}
 		else console.warn('No processid returned by server');
 	}
-	//Now it it running, keep checking for the status
+	//Now it is running, keep checking for the status
 	this.rookpluimRunning = function(response) {
 		var nodes = new pywpsParser(response);
 		var nodeProcessid = nodes.getNode('processid');
@@ -150,6 +151,7 @@ function smokeRun(response) {
 		}
 			
 	}
+	//Server is ready, we can update 
 	this.rookpluimReady = function(response) {
 		var nodes = new pywpsParser(response);
 		var nodeProcessid = nodes.getNode('processid');
@@ -160,7 +162,10 @@ function smokeRun(response) {
 					//TODO
 					url: OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']'),
 					headers: { Authorization : auth },
-					success: userinfoReady
+					success: function(response){
+						userinfoReady(response);
+						modelresults.push(new rookpluimresults(processid, title));
+					}
 				});
 		}
 		else
@@ -955,8 +960,8 @@ var graphPanel = new Ext.Panel({
 
 var profielPanel = new Ext.Panel({
 		title: 'Dwarsprofiel',
-		id: 'profielPanel',
-		html: "<div id='profiel'><svg></svg></div>"
+		id: 'profielPanel',  //TODO: height is workaround for FF
+		html: "<div id='profiel'><svg height='250px'></svg></div>"
 });
 
 var timePanel = new Ext.Panel({
@@ -1060,8 +1065,15 @@ var visibilityWindow = new Ext.Window({
 					//width: 150,
 				},
 				items: [
-				{xtype: 'checkbox',	fieldLabel: 'Model',itemId: 'model'},
-				{xtype: 'checkbox',	fieldLabel: 'KNMI',itemId: 'knmi'}	
+					{xtype: 'checkbox',	fieldLabel: 'Model',itemId: 'model'},
+					{
+						xtype: 'checkbox',	fieldLabel: 'KNMI',itemId: 'knmi',
+						checked: true,
+						handler: function(object){
+							var arr = app.mapPanel.map.getLayersByName("KNMI stations");
+							arr[0].setVisibility(object.checked);
+						}
+					}	
 				]
 			},{
 				xtype: 'fieldset',
@@ -1072,9 +1084,7 @@ var visibilityWindow = new Ext.Window({
 						visibleLayers[object.itemId] = object.checked;
 						//GRID
 						for (i=0;i<modelresults.length;i++){
-							var name = self.layers.grid;
-							var arr = app.mapPanel.map.getLayersByName(name);
-							arr[0].setVisibility(visibleLayers['landgrid']);
+							visibleLayers[object.itemId] = object.checked;
 							modelresults[i].redraw();
 						}
 					}
@@ -1211,49 +1221,20 @@ gmi.ModelPanel = Ext.extend(Ext.Panel, {
 			},{
 				title:'Info',
 				id: 'rookpluiminfopanel',
+				hidden: true, //uitgeschakeld tot nader order
 				xtype: 'panel',
 				layout: 'fit',
 				height: 200,
 				width: '100%',
 				items: [] //overview of parameters for selected simulation(s)
 			},{
-				title:'Progress',
+				title:'Voortgang',
 				id: 'pbarpanel',
 				xtype: 'panel',
 				//layout: 'vbox',
 				height: 200,
 				width: '100%',
-				items: [
-				{
-					xtype: 'progress',
-					id: 'Waiting',
-					text: 'Waiting'
-				},{
-					xtype: 'progress',
-					id: 'Initialisation',
-					text: 'Initialisation'
-				},{
-					xtype: 'progress',
-					id: 'Preprocessing',
-					text: 'Preprocessing'
-				},{
-					xtype: 'progress',
-					id: 'Calpuff-running',
-					text: 'Calpuff-running'
-				},{
-					xtype: 'progress',
-					id: 'Calpost-running',
-					text: 'Calpost-running'
-				},{
-					xtype: 'progress',
-					id: 'Postprocessing',
-					text: 'Postprocessing'
-				},{
-					xtype: 'progress',
-					id: 'Overall',
-					text: 'Totaal'
-				}
-				] 
+				items: [] //Contents are scripted 
 			}];
 			gmi.ModelPanel.superclass.initComponent.apply(this,arguments);
 		},

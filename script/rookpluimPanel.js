@@ -1,31 +1,176 @@
-var errorcodes = [];
-errorcodes.push("");
-errorcodes.push("De grenswaarden temperatuur buiten domein.");
-errorcodes.push("De grenswaarden hoogte brandhaard buiten domein.");
-errorcodes.push("De grenswaarden oppervlakte buiten domein.");
-errorcodes.push("De grenswaarden emissie buiten domein.");
-errorcodes.push("De grenswaarden verhouding oppervlakte/emissie buiten domiein.");
-errorcodes.push("De x-positie ligt buiten domein van het grid.");
-errorcodes.push("De y-positie ligt buiten domein van het grid.");
-errorcodes.push("Het coördinatensysteem is niet epsg:23021 UTM31N");
-errorcodes.push("Format begintijd niet correct");
-errorcodes.push("Format eindtijd niet correct");
-errorcodes.push("Begintijd ligt te ver terug, geen meteodata");
-errorcodes.push("Eindtijd ligt te ver weg, geen meteodata.");
-errorcodes.push("De begintijd ligt niet voor de eindtijd.");
-errorcodes.push("Tijd tussen begin en eindtijd is kleiner dan 3600 sec.");
-errorcodes.push("De titlecase komt al voor, dit is niet toegestaan.");
-errorcodes.push("Type gaslek niet correct");
-errorcodes.push("Diameter gaslek niet correct.");
-errorcodes.push("Verhouding emissie/diameter niet correct.");
-errorcodes.push("Typeoffire niet correct ‘area; of ‘leak’ is toegestaan");
-errorcodes.push("Aantal waarden voor temperatuur niet gelijk aan tijden die gedefinieerd zijn bij de variabele timesteps");
-errorcodes.push("Aantal waarden voor emissie niet gelijk aan tijden die gedefinieerd zijn bij de variabele timesteps");
-errorcodes.push("Tijden voor variabele temperatuur en emissie liggen niet tussen begintijd en eindtijd. Tijden worden gedefinieerd in uren vanaf begintijd.");
-errorcodes.push("Als variabele emissie en temperatuur wordt gevraagd en eerste tijdstip in niet gelijk aan 0.0 dan foutmelding");
-errorcodes.push("Gridsize niet correct >=50 en =<250 met stappen van 50 meter");
+var errorcodes = [
+	""
+	,"De grenswaarden temperatuur buiten domein."
+	,"De grenswaarden hoogte brandhaard buiten domein."
+	,"De grenswaarden oppervlakte buiten domein."
+	,"De grenswaarden emissie buiten domein."
+	,"De grenswaarden verhouding oppervlakte/emissie buiten domiein."
+	,"De x-positie ligt buiten domein van het grid."
+	,"De y-positie ligt buiten domein van het grid."
+	,"Het coördinatensysteem is niet epsg:23021 UTM31N"
+	,"Format begintijd niet correct"
+	,"Format eindtijd niet correct"
+	,"Begintijd ligt te ver terug, geen meteodata"
+	,"Eindtijd ligt te ver weg, geen meteodata."
+	,"De begintijd ligt niet voor de eindtijd."
+	,"Tijd tussen begin en eindtijd is kleiner dan 3600 sec."
+	,"De titlecase komt al voor, dit is niet toegestaan."
+	,"Type gaslek niet correct"
+	,"Diameter gaslek niet correct."
+	,"Verhouding emissie/diameter niet correct."
+	,"Typeoffire niet correct ‘area; of ‘leak’ is toegestaan"
+	,"Aantal waarden voor temperatuur niet gelijk aan tijden die gedefinieerd zijn bij de variabele timesteps"
+	,"Aantal waarden voor emissie niet gelijk aan tijden die gedefinieerd zijn bij de variabele timesteps"
+	,"Tijden voor variabele temperatuur en emissie liggen niet tussen begintijd en eindtijd. Tijden worden gedefinieerd in uren vanaf begintijd."
+	,"Als variabele emissie en temperatuur wordt gevraagd en eerste tijdstip in niet gelijk aan 0.0 dan foutmelding"
+	,"Gridsize niet correct >=50 en =<250 met stappen van 50 meter"
+];
 
 var visibleLayers = [];
+visibleLayers['vector'] = true;
+var activeRuns = [];
+
+//Generic pywps parser 
+function pywpsParser(response){
+	var xml;
+	var dq = Ext.DomQuery;
+	//XML with namespaces doesn't work in EXT, so we first remove the namespaces.
+	//The replace function is now only replacing 'wps' and 'ows' namespaces
+	//var xml = response.responseXML;
+	var string = response.responseText.replace(/wps:/gi,"");
+	string = string.replace(/ows:/gi,"");
+	xml = StringtoXML(string);
+	var node;
+	node = dq.selectNode('ExecuteResponse', xml);
+	var nodeException = dq.selectNode('Exception',xml);
+	if (nodeException != null) //error, show a message
+	{
+		Ext.MessageBox.show({
+				title: "Error!",
+				msg: nodeException.textContent,
+				wait: 300,
+				width: 300
+		});
+		return;
+	}
+	
+	this.getNode = function(key){
+		var node = dq.selectNode('Output:has(Identifier:nodeValue('+key+')) > Data > LiteralData', xml);
+		return node;
+	}
+	return this;
+	
+}
+
+
+function smokeRun(response) {
+	this.startTime = new Date();
+	this.firstStatus = true;
+	this.prevStatus;
+	this.resonse = response;
+	this.processid;
+	this.statusObj = {};
+	var self = this;
+	//First time start, run is presumably accepted
+	this.rookpluimStarted = function(response) {
+		var nodes = new pywpsParser(response);
+		var nodeProcessid = nodes.getNode('processid');
+		var processid = nodeProcessid.textContent;
+		if (processid != null) //we're done
+		{
+			Ext.Ajax.request({
+					url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getstatusinfo&datainputs=[processid='+processid+']'),
+					headers: { Authorization : auth },
+					success: self.rookpluimRunning //continue with running status
+				});
+		}
+		else console.warn('No processid returned by server');
+	}
+	//Now it it running, keep checking for the status
+	this.rookpluimRunning = function(response) {
+		var nodes = new pywpsParser(response);
+		var nodeProcessid = nodes.getNode('processid');
+		var processid = nodeProcessid.textContent;
+		var nodeStatus = nodes.getNode('status');
+		var nodeDuration = nodes.getNode('statusduration');
+		var nodeOrder = nodes.getNode('statusorder');
+		
+		if (nodeStatus.textContent == 'successfully') //we're done
+		{
+			var pbar = Ext.getCmp('successfully');
+			pbar.updateProgress(1, "Done", 1);
+			Ext.Ajax.request({
+				url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']'),
+				headers: { Authorization : auth },
+				scope: this,
+				success: self.rookpluimReady
+			});
+		}
+		else //we're not done, stay in the loop
+		{
+			if (self.firstStatus) //first time status overview, build progressbars
+			{
+				self.firstStatus = false;
+				
+				//Create panel with progressbars
+				var p = Ext.getCmp('pbarpanel');
+				p.removeAll();
+				var durationArr = nodeDuration.textContent.split(",");
+				var orderArr = nodeOrder.textContent.split(",");
+				for (var i = 0; i<durationArr.length;i++){
+					self.statusObj[orderArr[i]] = durationArr[i];
+					item = new Ext.ProgressBar({
+							id: orderArr[i],
+							text: orderArr[i] + " 0/" + durationArr[i]
+					})
+					p.items.add(item);
+				}
+				p.doLayout();
+			}
+			
+			var status = nodeStatus.textContent;
+			if (self.prevStatus && status != self.prevStatus){ //status update, timer reset
+				self.startTime = new Date();
+				var pbar = Ext.getCmp(self.prevStatus);
+				pbar.updateProgress(1);
+			}
+			var pbar = Ext.getCmp(status);
+			var seconds = (new Date() - self.startTime)/1000;
+			var percentage = seconds / self.statusObj[status];
+			pbar.updateProgress(percentage, status + " " + parseInt(seconds) + "/" + self.statusObj[status] , 1);
+			self.prevStatus = nodeStatus.textContent;
+			var makeRequest = function() {
+				Ext.Ajax.request({
+					url:OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getstatusinfo&datainputs=[processid='+processid+']'),
+					headers: { Authorization : auth },
+					success: self.rookpluimRunning
+				});
+			}
+			var t=setTimeout(makeRequest,3000); //Loop every 3 secs
+		}
+			
+	}
+	this.rookpluimReady = function(response) {
+		var nodes = new pywpsParser(response);
+		var nodeProcessid = nodes.getNode('processid');
+		var processid = nodeProcessid.textContent;	
+		if (processid) //we're done
+		{
+			Ext.Ajax.request({
+					//TODO
+					url: OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']'),
+					headers: { Authorization : auth },
+					success: userinfoReady
+				});
+		}
+		else
+		{
+			console.warn('No processid returned from server');
+		}
+	}
+	//fireoff the process of checking the model status upon creation of the object 
+	this.rookpluimStarted(response);
+}
 
 function processValidation(response){
 	
@@ -72,243 +217,7 @@ function processValidation(response){
 	  
 }
  
-var rookpluimStarted = function(response) {
-	
-		var xml;
-		var node;
-		
-		var dq = Ext.DomQuery;
-		//XML with namespaces doesn't work in EXT, so we first remove the namespaces.
-		//The replace function is now only replacing 'wps' and 'ows' namespaces
-		//var xml = response.responseXML;
-		var string = response.responseText.replace(/wps:/gi,"");
-		string = string.replace(/ows:/gi,"");
-		xml = StringtoXML(string);
-		node = dq.selectNode('ExecuteResponse', xml);
-		var nodeException = dq.selectNode('Exception',xml);
-		if (nodeException != null) //error, show a message
-		{
-			Ext.MessageBox.show({
-					title: "Error!",
-					msg: nodeException.textContent,
-					wait: 300,
-					width: 300
-			});
-			return;
-		}
-		var url = node.getAttribute("statusLocation");
-		
-		var nodeSucces = dq.selectNode('ProcessSucceeded',xml);
-		var nodeAccept = dq.selectNode('ProcessAccepted',xml);
-		var nodeStart = dq.selectNode('ProcessStarted',xml);
-		var nodeProcessid = dq.selectNode('Output:has(Identifier:nodeValue(processid)) > Data > LiteralData', xml);
-		var processid = nodeProcessid.textContent;
-		
-		form = Ext.getCmp('progresspanel');
-		form.add({
-			xtype: 'progress',
-			fieldLabel: processid,
-			id: 'processbar'
-		});
-		form.doLayout();
-		
-		
-		if (nodeSucces != null) //we're done
-		{
-			Ext.getCmp('processbar').updateProgress(0.3, "Sent", 1);
-			Ext.Ajax.request({
-					url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getprocessinfo&datainputs=[processid='+processid+']'),
-					headers: { Authorization : auth },
-					success: rookpluimRunning //continue with running status
-				});
-		}
-		else //we're not done, stay in the loop
-		{
-			if (nodeAccept != null) //first time accept
-			{
-				percentage = 0;
-				status = nodeAccept.textContent;
-				//Show an initial message box
-				Ext.getCmp('processbar').updateProgress(0.2, "Server is processing", 1);
-			}
-			else if (nodeStart != null) //started and running
-			{
-				//Ext.MessageBox.hide();
-				percentage = parseFloat(nodeStart.getAttribute("percentCompleted"));
-				status = nodeStart.textContent;
-				Ext.getCmp('processbar').updateProgress(percentage/100, status, 1);
-			}
-			else //this shouldn't happen
-			{
-				Ext.MessageBox.hide();
-				alert('<b>Error in WPS connection</b> \n ' + string);
-				return; 
-			}
-			Ext.MessageBox.updateProgress(percentage/100,status + ' '+ percentage);
-			var makeRequest = function() {
-				console.warn('Possible unneeded request to makeRequest');
-				Ext.Ajax.request({
-					/** TODO ik vraag me af of het script hier ooit komt**/
-					url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getprocessinfo&datainputs=[processid='+processid+']'),
-					headers: { Authorization : auth },
-					success: rookpluimStarted
-				});
-			}
-			var t=setTimeout(makeRequest,3000); //Loop every 3 secs
-		}
-		
-		
-}
-var rookpluimRunning = function(response) {
-		var xml;
-		var node;
-		
-		var dq = Ext.DomQuery;
-		//XML with namespaces doesn't work in EXT, so we first remove the namespaces.
-		//The replace function is now only replacing 'wps' and 'ows' namespaces
-		//var xml = response.responseXML;
-		var string = response.responseText.replace(/wps:/gi,"");
-		string = string.replace(/ows:/gi,"");
-		xml = StringtoXML(string);
-		node = dq.selectNode('ExecuteResponse', xml);
-		
-		var nodeException = dq.selectNode('ExceptionText',xml);
-		if (nodeException != null) //error, show a message
-		{
-			Ext.MessageBox.show({
-					title: "Error!",
-					msg: nodeException.textContent,
-					width: 300
-			});
-			return;
-		}
-		
-		var url = node.getAttribute("statusLocation");
-		var nodeSucces = dq.selectNode('ProcessSucceeded',xml);
-		var nodeAccept = dq.selectNode('ProcessAccepted',xml);
-		var nodeStart = dq.selectNode('ProcessStarted',xml);
-		
-		var nodeProcessid = dq.selectNode('Output:has(Identifier:nodeValue(processid)) > Data > LiteralData', xml);
-		var processid = nodeProcessid.textContent;
-		var nodeResult = dq.selectNode('Output:has(Identifier:nodeValue(status)) > Data > LiteralData', xml);
-		
-		
-		if (nodeResult.textContent == 'successfully') //we're done
-		{
-			Ext.getCmp('processbar').updateProgress(1, "Ready", 1);
-			
-			Ext.Ajax.request({
-					url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']'),
-					headers: { Authorization : auth },
-					scope: this,
-					success: rookpluimReady,
-				});
-		}
-		else //we're not done, stay in the loop
-		{
-			if (nodeAccept != null) //first time accept
-			{
-				percentage = 0;
-				status = nodeAccept.textContent;
-				//Show an initial message box
-				Ext.getCmp('processbar').updateProgress(0.1, "Server is processing", 1);
-			}
-			else if (nodeStart != null) //started and running
-			{
-				//Ext.MessageBox.hide();
-				percentage = parseFloat(nodeStart.getAttribute("percentCompleted"));
-				status = nodeStart.textContent;
-				Ext.getCmp('processbar').updateProgress(percentage/100, status, 1);
-			}
-			else //this shouldn't happen
-			{
-				 status = nodeResult.textContent;
-				 Ext.getCmp('processbar').updateProgress(50/100, status, 1);
-			}
-			//Ext.MessageBox.updateProgress(percentage/100,status + ' '+ percentage);
-			var makeRequest = function() {
-				Ext.Ajax.request({
-					url:OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getprocessinfo&datainputs=[processid='+processid+']'),
-					headers: { Authorization : auth },
-					success: rookpluimRunning
-				});
-			}
-			var t=setTimeout(makeRequest,3000); //Loop every 3 secs
-		}
-		
-}
 
-var rookpluimReady = function(response) {
-		var xml;
-		var node;
-		var dq = Ext.DomQuery;
-		//XML with namespaces doesn't work in EXT, so we first remove the namespaces.
-		//The replace function is now only replacing 'wps' and 'ows' namespaces
-		//var xml = response.responseXML;
-		var string = response.responseText.replace(/wps:/gi,"");
-		string = string.replace(/ows:/gi,"");
-		xml = StringtoXML(string);
-		node = dq.selectNode('ExecuteResponse', xml);
-		var nodeException = dq.selectNode('ExceptionText',xml);
-		if (nodeException != null) //error, show a message
-		{
-			Ext.MessageBox.show({
-					title: "Error!",
-					msg: nodeException.textContent,
-					width: 300
-			});
-			
-			return;
-		}
-		
-		var url = node.getAttribute("statusLocation");
-		var nodeSucces = dq.selectNode('ProcessSucceeded',xml);
-		var nodeAccept = dq.selectNode('ProcessAccepted',xml);
-		var nodeStart = dq.selectNode('ProcessStarted',xml);
-		
-		if (nodeSucces != null) //we're done
-		{
-			Ext.getCmp('processbar').updateProgress(1, "Ready", 1);
-			Ext.Ajax.request({
-					//TODO
-					url: OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']'),
-					headers: { Authorization : auth },
-					success: userinfoReady
-				});
-		}
-		else //we're not done, stay in the loop
-		{
-			if (nodeAccept != null) //first time accept
-			{
-				percentage = 0;
-				status = nodeAccept.textContent;
-				//Show an initial message box
-				Ext.getCmp('processbar').updateProgress(0.1, "Server is processing", 1);
-			}
-			else if (nodeStart != null) //started and running
-			{
-				//Ext.MessageBox.hide();
-				percentage = parseFloat(nodeStart.getAttribute("percentCompleted"));
-				status = nodeStart.textContent;
-				Ext.getCmp('processbar').updateProgress(percentage/100, status, 1);
-			}
-			else //this shouldn't happen
-			{
-				Ext.MessageBox.hide();
-				alert('<b>Error in WPS connection</b> \n ' + string);
-				return; 
-			}
-			//Ext.MessageBox.updateProgress(percentage/100,status + ' '+ percentage);
-			var makeRequest = function() {
-				Ext.Ajax.request({
-					url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']'),
-					headers: { Authorization : auth },
-					success: rookpluimReady
-				});
-			}
-			var t=setTimeout(makeRequest,3000); //Loop every 3 secs
-		}
-}
 
 function fireSmoke(validateonly){
 	var titlecase=Ext.getCmp('titlecase').getValue();
@@ -379,7 +288,10 @@ function fireSmoke(validateonly){
 		   url: OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=startcalpuffv4&datainputs=[userid='+ currentUser + ';titlecase='+titlecase+';epsg='+epsg+';xcrd='+x+';ycrd='+y +';begtime='+begDate+';endtime='+endDate+';species='+species+';emission='+emission+';surface='+surface+';stackheight='+stackheight+';timesteps='+timesteps+';temperature='+temperature+';typeoffire='+typeoffire+';gridsize='+gridsize+';]'),
 		   method: 'GET',
 		   headers: { Authorization : auth },
-		   success: rookpluimStarted
+		   success: function(response){
+		   	   	//Throwing process into object
+		   	   	activeRuns.push(new smokeRun(response));
+		   }
 		});
 	}
 }
@@ -459,6 +371,7 @@ function fillForm(response){
 	emissieStore.loadData(emissiedata);
 	updateChart();
 }
+
 
 /************************/
 var emissieData = 
@@ -590,11 +503,6 @@ var emissieGrid = new Ext.grid.EditorGridPanel({
 						}
 					}
 				);
-			}
-		},{
-			text: 'Grafiek',
-			handler: function(){
-				updateChart();
 			}
 		}]
 });
@@ -1310,12 +1218,42 @@ gmi.ModelPanel = Ext.extend(Ext.Panel, {
 				items: [] //overview of parameters for selected simulation(s)
 			},{
 				title:'Progress',
-				id: 'progresspanel',
+				id: 'pbarpanel',
 				xtype: 'panel',
-				layout: 'fit',
-				height: 60,
+				//layout: 'vbox',
+				height: 200,
 				width: '100%',
-				items: [] //overview of parameters for selected simulation(s)
+				items: [
+				{
+					xtype: 'progress',
+					id: 'Waiting',
+					text: 'Waiting'
+				},{
+					xtype: 'progress',
+					id: 'Initialisation',
+					text: 'Initialisation'
+				},{
+					xtype: 'progress',
+					id: 'Preprocessing',
+					text: 'Preprocessing'
+				},{
+					xtype: 'progress',
+					id: 'Calpuff-running',
+					text: 'Calpuff-running'
+				},{
+					xtype: 'progress',
+					id: 'Calpost-running',
+					text: 'Calpost-running'
+				},{
+					xtype: 'progress',
+					id: 'Postprocessing',
+					text: 'Postprocessing'
+				},{
+					xtype: 'progress',
+					id: 'Overall',
+					text: 'Totaal'
+				}
+				] 
 			}];
 			gmi.ModelPanel.superclass.initComponent.apply(this,arguments);
 		},

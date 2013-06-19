@@ -20,8 +20,8 @@
 	
 	<!-- OpenLayers resources -->
 	<link rel="stylesheet" type="text/css" href="./libs/OpenLayers/theme/default/style.css" />
-	<script type="text/javascript" src="./libs/OpenLayers/lib/OpenLayers.js"></script>
-                                                   
+<!--<script type="text/javascript" src="./libs/OpenLayers/lib/OpenLayers.js"></script>
+-->	<script src="http://openlayers.org/api/2.13-rc7/OpenLayers.js"></script>                                                   
 	<!-- GeoExt resources -->
 	<link rel="stylesheet" type="text/css" href="./libs/GeoExt/resources/css/geoext-all.css" />
 	<script type="text/javascript" src="./libs/geoext/lib/GeoExt.js"></script>
@@ -32,6 +32,7 @@
 	<script type="text/javascript" src="./libs/gxp/src/script/loader.js"></script>
 	
 	<!-- local resources -->
+	<!--<script type="text/javascript" src="./script/WPS.js"></script>-->
 	<link rel="stylesheet" type="text/css" href="./style/local.css" />
 	<script type="text/javascript" src="./script/RowExpander.js"></script>
 	<script type="text/javascript" src="./script/DateFormat.js"></script>
@@ -463,19 +464,52 @@ var app = new gxp.Viewer({
 		}		
     ]
 });
+var wps, client;
 app.on("ready", function() {
 	
 	/************
 		Whatever should happen after the app is initialized comes here 
 	************/
-	
+/** WORK IN PROGRESSS for the WPS lib.... 	
 	//Rookpluim: Get the processes from the user
+	var url = 'http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi';
+	var client = new OpenLayers.WPSClient({
+        servers: {
+            argoss: url
+        }
+    });
+	 client.execute({
+	 	server: 'argoss',
+	 	process: 'getuserinfo',
+	 	inputs: {userid: 2},
+	 	success: function(outputs){
+	 		userinfoReady();
+	 	 console.log(outputs);
+	 	}
+	 });
+	/**/
+	 
+	
 	Ext.Ajax.request({
 		//TODO
 		url:OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']'),
 		headers: { Authorization : auth },
 		success: userinfoReady
 	});	
+	
+	/************************/
+	//Add KNMI layers
+	var knmi1 = new OpenLayers.Layer.WMS("KNMI stations",
+			 "http://smoke-plume.argoss.nl/geoserver/wms",
+			 {
+				 layers: "knmi:vw_knmi_netherlands_windinfo,knmi:vw_knmi_netherlands_stations",
+				 transparent: true
+			 }//TODO: want to disable the legend
+			 ,{metadata:{legendURL: "foo"}}
+			 );
+	app.mapPanel.map.addLayer(knmi1);
+
+
 	
 	//Zoom to desired extent	
 	zoomExtent = new OpenLayers.Bounds(330000,6500000,800000,7100000);

@@ -710,6 +710,7 @@ var simulatiesGrid = new Ext.grid.GridPanel({
 		columns: [
 			//cbxSelModel,
 			{id: 'title', header: 'Name', width: 80, sortable: true, dataIndex: 'title'},
+			{id: 'processid', header: 'Id', width: 80, sortable: true, dataIndex: 'processid'}
 			/*{
 			xtype: 'actioncolumn',
 			width: 50,
@@ -770,8 +771,8 @@ var processColModel = new Ext.grid.ColumnModel({
 	},
 	columns: [
 		{id: 'title', header: 'Naam', width: 80, sortable: true, dataIndex: 'title'},
-		{id: 'processid', header: 'Proces id', width: 80, sortable: true, dataIndex: 'processid'},
-		{id: 'archive', header: 'Archief?', width: 80, sortable: true, dataIndex: 'archive'},
+		{id: 'processid', header: 'Proces id', width: 80, sortable: true, dataIndex: 'processid'}
+		//{id: 'archive', header: 'Archief?', width: 80, sortable: true, dataIndex: 'archive'},
 	]
 }); 
 

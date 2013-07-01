@@ -7,7 +7,36 @@ function rookpluimresults(processid, title){
 	this.title = title;
 	this.paramjson;
 	var self=this;
-
+	var colors = ["red", "yellow", "orange"];
+	this.contourStyle = function(feature){
+		if (feature.properties.ID != null)
+        	var color = colors[feature.properties.ID];
+        else color = "blue";
+        return {
+			"color": color,
+			"weight": 2,
+			"opacity": 1
+		}
+    };
+    		
+    this.contourStyleOpaq = function(feature){
+    	if (feature.properties.ID != null)
+        	var color = colors[feature.properties.ID];
+        else color = "blue";
+        return {
+			"color": "#ff7800",
+			"weight": 2,
+			"opacity": 0.3
+		}
+    };
+	
+    this.gridStyle = {
+    	"color": "steelBlue",
+    	fillOpacity: 0,
+		"weight": 2,
+		"opacity": 1
+    };
+    
 	this.paramStore = {};
 	this.processid = processid.toString(); //TODO: make non-global
 	this.parampanel = {};
@@ -47,17 +76,17 @@ function rookpluimresults(processid, title){
 		var datastore;
 		var $outputs = $xml.find('wps\\:Output, Output');
 		$outputs.each(function(){
-			 if ($(this).find('ows\\:Identifier').text() == 'archiveid')
+			 if ($(this).find('ows\\:Identifier, Identifier').text() == 'archiveid')
 				 archive = $(this).find('wps\\:LiteralData, LiteralData').text();
-			 if ($(this).find('ows\\:Identifier').text() == 'processid')
+			 if ($(this).find('ows\\:Identifier, Identifier').text() == 'processid')
 				 processid = $.trim($(this).find('wps\\:LiteralData, LiteralData').text());
-			 if ($(this).find('ows\\:Identifier').text() == 'datastore')
+			 if ($(this).find('ows\\:Identifier, Identifier').text() == 'datastore')
 				 datastore = $(this).find('wps\\:LiteralData, LiteralData').text();
 		});
 		
 		if (archive == 0 || archive == 2) //we're done
 		{
-			var url= OpenLayers.ProxyHost + escape("http://smoke-plume.argoss.nl/geoserver/"+processid+"/wms?request=getCapabilities");
+			var url= ProxyHost + escape("http://smoke-plume.argoss.nl/geoserver/"+processid+"/wms?request=getCapabilities");
 			$.ajax({
 				url:url,
 				success:function(result){
@@ -68,7 +97,7 @@ function rookpluimresults(processid, title){
 		else //we're not done, stay in the loop
 		{
 			var makeRequest = function() {
-				var url= OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']');
+				var url= ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']');
 				$.ajax({url:url,success:function(result){
 					gettingResults(result);
 				}});
@@ -88,23 +117,13 @@ function rookpluimresults(processid, title){
 	
 	this.layers = {};
 	this.layers.vector = [];
-	this.layers.raster = [];
-	this.layers.wind = [];
-	this.layers.profiel = [];
-	this.layers.cone = [];
 	this.layers.rekengrid;
-	this.profiles = [];
-	
-	
 	
 	//Request the archive status. Callback will do the rest
-	var url= OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']');
+	var url= ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+processid+']');
 	$.ajax({url:url,success:function(result){
 		gettingResults(result);
 	}});
-	
-	
-	
 	
 	
 	this.createLayers = function(response){
@@ -120,7 +139,7 @@ function rookpluimresults(processid, title){
 		$names = $xml.find('Layer Layer[queryable=1] Name');
 		$names.each(function(){
 			var name = $(this).text();
-			var url = OpenLayers.ProxyHost + escape("http://smoke-plume.argoss.nl/geoserver/"+processid+"/ows?service=WFS&version=1.0.0&request=GetFeature&typeName="+self.processid+":"+name+"&srsName=epsg:900913&maxFeatures=10000&outputFormat=json");
+			var url = ProxyHost + escape("http://smoke-plume.argoss.nl/geoserver/"+processid+"/ows?service=WFS&version=1.0.0&request=GetFeature&typeName="+self.processid+":"+name+"&srsName=epsg:4326&maxFeatures=10000&outputFormat=json");
 			var colors = ["red", "yellow", "orange"];
 			var context = {
                 getColor: function(feature) {
@@ -134,29 +153,49 @@ function rookpluimresults(processid, title){
                 strokeColor: "${getColor}", // using context.getColor(feature)
                 stokeWidth: "2px"
             };
-            var style = new OpenLayers.Style(template, {context: context});
-            
-			var layer = new OpenLayers.Layer.Vector(name, {
-				strategies: [new OpenLayers.Strategy.Fixed()],
-				protocol: new OpenLayers.Protocol.HTTP({
-					url: url,
-					format: new OpenLayers.Format.GeoJSON()
-				}),
-				styleMap: new OpenLayers.StyleMap(style)
-			});
+            //var style = new OpenLayers.Style(template, {context: context});
 			
-			if (name.match("grid")){ 
-				map.addLayer(layer);
+			
+			 
+			if (name.match("grid")){
+				//map.addLayer(layer);
+				self.name = name;
+				$.ajax({
+					url:url,
+					dataType: 'json',
+					name: name,
+					success: function(data) {
+						self.layers[this.name] = L.geoJson(data,{style: self.gridStyle}).addTo(map);
+					}
+				}).done(function(){
+					self.bounds = self.layers.grid.getBounds();
+					map.fitBounds(self.bounds);
+					map.setZoom(12);
+				});
 				//Grid is just one layer and can be visible
-				layer.setVisibility(true);
+				//layer.setVisibility(true);
 				self.layers.rekengrid = name;
-			}
+			}            
 			if (name.match("_cv")){
-				layer.setVisibility(false);
-				map.addLayer(layer);
-				self.layers.vector.push(name);
+				//layer.setVisibility(false);
+				//map.addLayer(layer);
+				$.ajax({
+					url:url,
+					dataType: 'json',
+					name: name,
+					success: function(data) {
+						var layer = L.geoJson(data,{
+							style:self.contourStyle,
+							onEachFeature: self.onEachFeature
+						});
+						layer.name = this.name;
+						self.layers.vector.push(layer);
+					}
+				});
+				//self.layers.vector.push(name);
 			}
-			//Zoom to layer
+			
+
 		});
 		//Move back to map
 		$("#timeslider").slider("enable");
@@ -194,9 +233,10 @@ function rookpluimresults(processid, title){
    }
    
    this.clearOldLayers  = function(){
-   	   var oldlayers = map.getLayersByClass("OpenLayers.Layer.Vector");
-   	   for (var i = 0 ; i<oldlayers.length;i++)
-   	   	   map.removeLayer(oldlayers[i]);
+   	   //var oldlayers = map.getLayersByClass("OpenLayers.Layer.Vector");
+   	   //for (var i = 0 ; i<oldlayers.length;i++)
+   	   //	   map.removeLayer(oldlayers[i]);
+   	   //map.removeLayer(layers['']); //TODO
    }
 	
 	/***
@@ -237,21 +277,15 @@ function rookpluimresults(processid, title){
 	this.showStep = function(step) {
 		var min = 0;
 		var range = this.range;
-		var name = self.layers.rekengrid;
-		var arr = map.getLayersByName(name);
-		arr[0].setVisibility(visibleLayers['rekengrid']);
-		
+
 		//Set layers inside min/max visible
 		for (var i=min;i<=step;i++){
 			//Only do that for vector layer
-			var name = self.layers.vector[i];
-			var arr = map.getLayersByName(name);
-			arr[0].setVisibility(visibleLayers['vector']);
-			//arr[0].setOpacity(1-((step-i)/range));
+			self.layers.vector[i].addTo(map);
 			if (i == step)
-				arr[0].setOpacity(1);
+				self.layers.vector[i].setStyle(self.contourStyle);
 			else
-				arr[0].setOpacity(0.3);
+				self.layers.vector[i].setStyle(self.contourStyleOpaq);
 		}
 		
 		//Rest of layers only shown at T max step
@@ -260,20 +294,17 @@ function rookpluimresults(processid, title){
 		//arr[0].setVisibility(visibleLayers['raster']);
 		
 		//Show time
-		var time = name.split("_")[1].split("-");
+		var time = self.layers.vector[step].name.split("_")[1].split("-");
 		var hr =  time[0];
 		var minutes = time[1];
 		var sec = time[2];
 		var timestring = time[0] + ":" + time[1];
-		//this.weergaveWindow.getComponent('afspeelform').getComponent('playtime').setValue(timestring);
 		$("#timebox").html(timestring);
 
 		//Set layers outside min/max invisible
 		for (var i=0;i<self.layers.vector.length;i++){
 			if (i < min || i > step){ //vector outside range
-				var name = self.layers.vector[i];
-				var arr = map.getLayersByName(name);
-				arr[0].setVisibility(false);
+				map.removeLayer(self.layers.vector[i]);
 			}
 			if (i != step){ //rest of layers outside step
 				
@@ -295,7 +326,7 @@ function rookpluimresults(processid, title){
 	}
 
 	//Get the parameters of the process for display
-	var url= OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getprocessinfo&datainputs=[processid='+processid+']');
+	var url= ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getprocessinfo&datainputs=[processid='+processid+']');
 	$.ajax({url:url,success:function(result){
 		self.processParams(result);
 	}});

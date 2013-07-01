@@ -1,66 +1,115 @@
-
 <!DOCTYPE html>
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-        <title>OpenLayers with jQuery Mobile</title>
+        <title>Smoke plume mobile</title>
+        
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        
+
         <link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.css" />
+        
         <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
         <script src="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.js"></script>
-        
+<!--
         <link rel="stylesheet" href="./style/style.mobile.css" type="text/css">
-        <link rel="stylesheet" href="./style/style.mobile-jq.css" type="text/css">
-        
+       <link rel="stylesheet" href="./style/style.mobile-jq.css" type="text/css">
+-->        
         <!-- Proj resources -->
-        <script type="text/javascript" src="./libs/proj4js_combined.js"></script>
-        
+ <!--       <script type="text/javascript" src="./libs/proj4js_combined.js"></script>
         <script src="http://openlayers.org/dev/OpenLayers.mobile.js"></script>
         <script src="./mobile/mobile-base.js"></script>
         <script src="./mobile/mobile-jq.js"></script>
+-->        
+         <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6/leaflet.css" />
+		 <!--[if lte IE 8]>
+			 <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6/leaflet.ie.css" />
+		 <![endif]-->
+		 <script src="http://cdn.leafletjs.com/leaflet-0.6/leaflet.js"></script>
+        
+
         <script src="./mobile/mobile-smoke.js"></script>
         <script src="./mobile/mobile_rookpluimResults.js"></script>
         <script src="http://maps.googleapis.com/maps/api/js?sensor=false&amp;libraries=places"></script>
         <script src="./mobile/jquery.geocomplete.min.js"></script>
         <style type="text/css" media="screen">
-		  form {
-			background: url(https://developers.google.com/maps/documentation/places/images/powered-by-google-on-white.png) no-repeat center right;
-		  }
+			form {
+				background: url(https://developers.google.com/maps/documentation/places/images/powered-by-google-on-white.png) no-repeat center right;
+			}
+			body {
+				padding: 0;
+				margin: 0;
+			}
+			html, body, {
+				height: 100%;
+			}
+			#map {height: 100%;margin: -15px;padding: 0;}
+			#map:-webkit-full-screen { width: 100% !important; height: 100% !important; }
+			#map:-moz-full-screen { width: 100% !important; height: 100% !important; }
+			#map:full-screen { width: 100% !important; height: 100% !important; }
 		</style>
 		
 		<script type="text/javascript">
 			currentUser = 'geodan';
 			currentPass = '8xCjm9WjJ';
 			auth =  'Basic ' + 'Z2VvZGFuOjh4Q2ptOVdqSg==';
-			OpenLayers.ProxyHost = "./cgi-bin/proxy.cgi?url=";
-			Proj4js.defs["EPSG:28992"] = "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079  +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs";
-			Proj4js.defs["EPSG:32631"] = "+proj=utm +zone=31 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"; 
-	 
+			//OpenLayers.ProxyHost = "./cgi-bin/proxy.cgi?url=";
+			ProxyHost = "./cgi-bin/proxy.cgi?url=";
+			//Proj4js.defs["EPSG:28992"] = "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079  +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs";
+			//Proj4js.defs["EPSG:32631"] = "+proj=utm +zone=31 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"; 
+			var map;
+			
+			var resizeContentArea = function() {
+				var content, contentHeight, footer, header, viewportHeight;
+				window.scroll(0, 0);
+				header = $(":jqmData(role='header'):visible");
+				footer = $(":jqmData(role='footer'):visible");
+				content = $(":jqmData(role='content'):visible");
+				viewportHeight = $(window).height();
+				contentHeight = viewportHeight - header.outerHeight() - footer.outerHeight() -50;
+				$("article:jqmData(role='content')").first().height(contentHeight);
+				map.invalidateSize();
+				return $("#map").height(contentHeight);
+			};
+			
+			function init(){
+				$('.ui-mobile [data-role="page"]').css("position", "relative"); 
+				$('.ui-mobile [data-role="dialog"]').css("position", "relative");
+				$('.ui-page').css("position", "relative");
+				$(window).bind('orientationchange pageshow resize', resizeContentArea);
+				//Map init
+				map = L.map('map').setView([52, 5], 13);
+				setTimeout(function(){
+					console.log('Resizing map');
+					map.invalidateSize(); //Get rid of jqeueryM dimensions
+				},1000);
+				var topo = L.tileLayer.wms("/geoserver/wms", {
+					layers: 'nl_data:terrein',
+					format: 'image/png',
+					transparent: true,
+					attribution: "Geodan",
+					crs: L.CRS.EPSG900913,
+					tiled: true
+				}).addTo(map);
+				
+			}
+			
 		</script>
     </head>
     <body>
-        <h1 id="title">Smoke-Plume with jQuery Mobile</h1>
-        <div id="tags">
-          mobile, jquery
-        </div>
-        <p id="shortdesc">
-          Using jQuery Mobile to display a Smoke Plume model.
-        </p>
-        
         <!-- START OF MAIN MAP PAGE -->
         <div data-role="page" id="mappage">
+        	
           <div data-role="header" id="timescroller">
+          	<div id="timebox">Time</div>
           	<label for="timeslider" class="ui-hidden-accessible">Time:</label>
           	<input type="range" name="timeslider" id="timeslider" data-highlight="true" value="1" min="1" max="19" />
           </div>
-          <div data-role="content">
+          <article data-role="content">
             <div id="map"></div>
-          </div>
-          <div id="timebox"> 
-          	<!--Display model's time -->
-          </div>
+          </article>
+          
+          
 
           <div data-role="footer">
           	<a href="#smokepage" data-icon="search" data-role="button">Smoke</a>
@@ -159,6 +208,9 @@
                 </ul>
             </div>
         </div>
+        <script type="text/javascript">
+        	init();
+        </script>
     </body>
 </html>
 

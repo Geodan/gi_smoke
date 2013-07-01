@@ -18,18 +18,18 @@ var userinfoReady = function(response) {
 			console.warn($xml.find('ows\\:ExceptionText, ExceptionText').text());
 			return;
 		}
-		tmp2 = $xml;
+		
 		var processlist, archivelist, titlelist;
 		
 		var $outputs = $xml.find('wps\\:Output, Output');
 
 		$outputs.each(function(){
-			 if ($(this).find('ows\\:Identifier').text() == 'archiveid')
-				 archivelist = $(this).find('wps\\:LiteralData').text();
-			 if ($(this).find('ows\\:Identifier').text() == 'processid')
-				 processlist = $(this).find('wps\\:LiteralData').text();
-			 if ($(this).find('ows\\:Identifier').text() == 'titlecase')
-				 titlelist = $(this).find('wps\\:LiteralData').text();
+			 if ($(this).find('ows\\:Identifier, Identifier').text() == 'archiveid')
+				 archivelist = $(this).find('wps\\:LiteralData, LiteralData').text();
+			 if ($(this).find('ows\\:Identifier, Identifier').text() == 'processid')
+				 processlist = $(this).find('wps\\:LiteralData, LiteralData').text();
+			 if ($(this).find('ows\\:Identifier, Identifier').text() == 'titlecase')
+				 titlelist = $(this).find('wps\\:LiteralData, LiteralData').text();
 		});
 		
 		var list = processlist.split(",");
@@ -212,7 +212,7 @@ function smokeRun(response) {
 $(document).ready(function(){
 //Geocomplete thanks to:
 //http://ubilabs.github.io/geocomplete/examples/simple.html
-	var url= OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']');
+	var url= ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']');
 	$.ajax({url:url,success:function(result){
 		userinfoReady(result);
 	}});

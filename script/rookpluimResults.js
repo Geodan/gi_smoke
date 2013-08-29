@@ -355,6 +355,7 @@ function rookpluimresults(processid, title){
 	
 	this.createLayers = function(records, operation, success){
 		var chartDrawn = false;
+		
 		//Prepare layers and store layernames
 		for (i=0;i<records.length;i++){
 			var name = records[i].data.name;
@@ -433,7 +434,7 @@ function rookpluimresults(processid, title){
 			}
 			app.mapPanel.layers.add(record);
 		} 
-		
+		tmp = self.layers;
 		
 		 
 		//Set play options

@@ -130,7 +130,7 @@ function smokeRun(response) {
 		if (self.processid != null) //we're done
 		{
 			$.ajax({
-					url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getstatusinfo&datainputs=[processid='+self.processid+']'),
+					url:ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getstatusinfo&datainputs=[processid='+self.processid+']'),
 					success: self.rookpluimRunning //continue with running status
 			});
 		}
@@ -155,7 +155,7 @@ function smokeRun(response) {
 		if (status == 'successfully') //we're done
 		{
 			$.ajax({
-				url:OpenLayers.ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+self.processid+']'),
+				url:ProxyHost+escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getmodelresults&datainputs=[processid='+self.processid+']'),
 				success: self.rookpluimReady
 			});
 		}
@@ -180,12 +180,16 @@ function smokeRun(response) {
 				});
 			
 			}
+			if (status.match(/Error/g)){ 
+					alert(status);
+					return;
+			}
 			var seconds = (new Date() - self.startTime)/1000;
 			var percentage = seconds / self.statusObj[status];
 			self.prevStatus = status;
 			var makeRequest = function() {
 				$.ajax({
-					url:OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getstatusinfo&datainputs=[processid='+self.processid+']'),
+					url: ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getstatusinfo&datainputs=[processid='+self.processid+']'),
 					success: self.rookpluimRunning
 				});
 			}
@@ -196,7 +200,7 @@ function smokeRun(response) {
 	//Server is ready, we can update 
 	this.rookpluimReady = function(response) {
 		$.ajax({
-				url: OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']'),
+				url:  ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=getuserinfo&datainputs=[userid='+currentUser+']'),
 				success: function(response){
 					userinfoReady(response);
 					modelresults = new rookpluimresults(self.processid, self.title);
@@ -219,17 +223,17 @@ $(document).ready(function(){
 	  
 	$("#geocomplete").geocomplete()
 	  .bind("geocode:result", function(event, result){
-		$.log("Result: " + result.formatted_address);
+		console.log("Result: " + result.formatted_address);
 		var $lat = $("#lat");
 		var $lon = $("#lon");
 		$lat.val(result.geometry.location.jb);
 		$lon.val(result.geometry.location.kb);
 	  })
 	  .bind("geocode:error", function(event, status){
-		$.log("ERROR: " + status);
+		console.log("ERROR: " + status);
 	  })
 	  .bind("geocode:multiple", function(event, results){
-		$.log("Multiple: " + results.length + " results found");
+		console.log("Multiple: " + results.length + " results found");
 	  });
 	$("#start").click(function(){
 		$.mobile.loading( 'show', {
@@ -243,7 +247,11 @@ $(document).ready(function(){
 		var later = new Date();
 		var later = later.setHours(later.getHours()+5);
 		var later = new Date(later); //TODO, ouch..
-		var titlecase= "Run_" + now.getTime().toString();
+		var runname = $('#runname').val();
+		if (runname)
+		    var titlecase= runname;
+		else
+		    var titlecase= "Run_" + now.getTime().toString();
 		var epsg=32631;
 		var begYear=now.getFullYear();
 		var begMonth=now.getMonth()+1;
@@ -255,12 +263,12 @@ $(document).ready(function(){
 		var endtime=later.getHours() + ":" + later.getMinutes();
 		var x = $('#lon').val();
 		var y = $('#lat').val();
-		var point = new OpenLayers.Geometry.Point(x,y);
-		var fromProjection = new OpenLayers.Projection("EPSG:4326");
-		var toProjection = new OpenLayers.Projection("EPSG:32631");
-		point.transform(fromProjection, toProjection);
-		x = point.x / 1000;
-		y = point.y /1000;
+		var point = new Proj4js.Point( parseFloat(x), parseFloat(y) ); 
+		var fromProjection = new Proj4js.Proj('WGS84');    
+		var toProjection = new Proj4js.Proj('EPSG:32631');
+		var pointnew = Proj4js.transform(fromProjection, toProjection, point);
+		x = pointnew.x / 1000;
+		y = pointnew.y /1000;
 		begDate = ''+begYear+'-'+begMonth+'-'+begDay+'_'+begtime+':00';
 		endDate = ''+endYear+'-'+endMonth+'-'+endDay+'_'+endtime+':00';
 		var species=$('#select-choice-0').val();
@@ -274,7 +282,7 @@ $(document).ready(function(){
 		var gridsize=150;
 		
 		
-		var url= OpenLayers.ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=startcalpuffv4&datainputs=[userid='+ currentUser + ';titlecase='+titlecase+';epsg='+epsg+';xcrd='+x+';ycrd='+y +';begtime='+begDate+';endtime='+endDate+';species='+species+';emission='+emission+';surface='+surface+';stackheight='+stackheight+';timesteps='+timesteps+';temperature='+temperature+';typeoffire='+typeoffire+';gridsize='+gridsize+';validateonly=no;]');
+		var url= ProxyHost + escape('http://smoke-plume.argoss.nl/cgi-bin/pywps.cgi?service=wps&version=1.0.0&request=execute&identifier=startcalpuffv4&datainputs=[userid='+ currentUser + ';titlecase='+titlecase+';epsg='+epsg+';xcrd='+x+';ycrd='+y +';begtime='+begDate+';endtime='+endDate+';species='+species+';emission='+emission+';surface='+surface+';stackheight='+stackheight+';timesteps='+timesteps+';temperature='+temperature+';typeoffire='+typeoffire+';gridsize='+gridsize+';validateonly=no;]');
 		  $.ajax({url:url,success:function(result){
 			new smokeRun(result);
 		  }
@@ -288,9 +296,8 @@ $(document).ready(function(){
 	//Slider func
 	$("#timeslider").hide(); //only hide number
 	//$("#timeslider").slider("disable");
-	
-	$(document).on( "slidestop",  "#timeslider" ,function( event, ui ) {
-        modelresults.showStep($("#timeslider").val());//TODO
-    });
-	
+	$('#timeslider').change(function(){
+        var slider_value = $(this).val();
+        modelresults.showStep(slider_value);
+    })
 });

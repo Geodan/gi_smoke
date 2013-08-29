@@ -137,6 +137,7 @@ function rookpluimresults(processid, title){
 			return;
 		}*/
 		$names = $xml.find('Layer Layer[queryable=1] Name');
+		tmp2 = $names;
 		$names.each(function(){
 			var name = $(this).text();
 			var url = ProxyHost + escape("http://smoke-plume.argoss.nl/geoserver/"+processid+"/ows?service=WFS&version=1.0.0&request=GetFeature&typeName="+self.processid+":"+name+"&srsName=epsg:4326&maxFeatures=10000&outputFormat=json");
@@ -197,6 +198,19 @@ function rookpluimresults(processid, title){
 			
 
 		});
+        
+        function sortLayers(){
+            self.layers.vector.sort(function compare(a,b) {
+              if (a.name< b.name)
+                 return -1;
+              if (a.name> b.name)
+                return 1;
+              return 0;
+            });
+        }
+        setTimeout(sortLayers,5000);//TODO
+        
+        tmp2 = self.layers.vector;
 		//Move back to map
 		$("#timeslider").slider("enable");
 		$.mobile.loading( 'hide' )

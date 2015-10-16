@@ -9,7 +9,7 @@ $pg_host = '192.168.40.5'
 $pg_port = '3389';
 $pg_dbase= 'research';
 $pg_user = 'tomt';
-$pg_pass = 'Gehijm';
+$pg_pass = '';
 $pg_schema = 'model_wildfire';
 
 //Fuelmodel

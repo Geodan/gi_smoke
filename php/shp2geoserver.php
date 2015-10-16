@@ -33,7 +33,7 @@ include 'globals.php';
 	curl_setopt($ch, CURLOPT_STDERR, $logfh); // logs curl messages
 		
 	//Edit $passwordStr to be a valid username:password combination for your Geoserver setup.
-	$passwordStr = "admin:Gehijm"; // replace with your username:password
+	$passwordStr = "admin:password"; // replace with your username:password
 	curl_setopt($ch, CURLOPT_USERPWD, $passwordStr);
 						
 	//PUT return code - used when writing the log file. 

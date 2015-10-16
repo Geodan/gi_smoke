@@ -25,7 +25,7 @@ $shapefile = $_REQUEST['shapefile'];
 
     //Required POST request settings
     curl_setopt($ch, CURLOPT_POST, True);
-    $passwordStr = "admin:Gehijm"; // replace with your username:password
+    $passwordStr = "admin:password"; // replace with your username:password
     curl_setopt($ch, CURLOPT_USERPWD, $passwordStr);
     
     //POST data
